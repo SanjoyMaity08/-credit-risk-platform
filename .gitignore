@@ -1,0 +1,30 @@
+# Datasets (too large for git — mount via Docker volume)
+data/
+*.csv
+*.zip
+
+# Trained model artifacts
+models/
+*.pkl
+*.joblib
+
+# Environment
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
