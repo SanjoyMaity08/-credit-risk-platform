@@ -1,0 +1,38 @@
+-- NeoStats Credit Risk Platform — SQLite Schema
+-- The 'applications' table is populated at runtime from application_train.csv
+-- by running: python scripts/init_db.py
+
+CREATE TABLE IF NOT EXISTS applications (
+    SK_ID_CURR              INTEGER PRIMARY KEY,
+    TARGET                  INTEGER,                 -- 1=default, 0=no default
+    NAME_CONTRACT_TYPE      TEXT,
+    CODE_GENDER             TEXT,
+    FLAG_OWN_CAR            TEXT,
+    FLAG_OWN_REALTY         TEXT,
+    CNT_CHILDREN            INTEGER,
+    AMT_INCOME_TOTAL        REAL,
+    AMT_CREDIT              REAL,
+    AMT_ANNUITY             REAL,
+    AMT_GOODS_PRICE         REAL,
+    NAME_INCOME_TYPE        TEXT,
+    NAME_EDUCATION_TYPE     TEXT,
+    NAME_FAMILY_STATUS      TEXT,
+    NAME_HOUSING_TYPE       TEXT,
+    DAYS_BIRTH              INTEGER,
+    DAYS_EMPLOYED           INTEGER,
+    DAYS_REGISTRATION       REAL,
+    DAYS_ID_PUBLISH         INTEGER,
+    OCCUPATION_TYPE         TEXT,
+    REGION_POPULATION_RELATIVE REAL,
+    EXT_SOURCE_1            REAL,
+    EXT_SOURCE_2            REAL,
+    EXT_SOURCE_3            REAL,
+    -- Derived columns added by init_db.py
+    AGE_YEARS               REAL,
+    CREDIT_INCOME_RATIO     REAL,
+    ANNUITY_INCOME_RATIO    REAL
+);
+
+-- Example queries
+-- SELECT ROUND(100.0 * SUM(TARGET) / COUNT(*), 2) AS default_rate FROM applications;
+-- SELECT CODE_GENDER, ROUND(100.0 * AVG(TARGET), 2) AS default_rate FROM applications GROUP BY CODE_GENDER;
