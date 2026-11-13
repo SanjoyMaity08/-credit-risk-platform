@@ -1,0 +1,57 @@
+"""
+Data loader module — loads and joins Home Credit dataset tables.
+"""
+import os
+import pandas as pd
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+DATA_DIR = os.environ.get("DATA_DIR", "/app/data")
+
+
+def load_main_tables() -> pd.DataFrame:
+    """Load application_train.csv and merge with bureau summary."""
+    logger.info("Loading application_train.csv ...")
+    app = pd.read_csv(os.path.join(DATA_DIR, "application_train.csv"))
+    logger.info(f"application_train shape: {app.shape}")
+
+    bureau_path = os.path.join(DATA_DIR, "bureau.csv")
+    if os.path.exists(bureau_path):
+        bureau = pd.read_csv(bureau_path)
+        bureau_agg = (
+            bureau.groupby("SK_ID_CURR")
+            .agg(
+                BUREAU_LOAN_COUNT=("SK_ID_BUREAU", "count"),
+                BUREAU_AVG_CREDIT_DAY_OVERDUE=("CREDIT_DAY_OVERDUE", "mean"),
+                BUREAU_MAX_AMT_CREDIT_SUM=("AMT_CREDIT_SUM", "max"),
+            )
+            .reset_index()
+        )
+        app = app.merge(bureau_agg, on="SK_ID_CURR", how="left")
+        logger.info("Merged bureau aggregates.")
+
+    prev_path = os.path.join(DATA_DIR, "previous_application.csv")
+    if os.path.exists(prev_path):
+        prev = pd.read_csv(prev_path)
+        prev_agg = (
+            prev.groupby("SK_ID_CURR")
+            .agg(
+                PREV_APP_COUNT=("SK_ID_PREV", "count"),
+                PREV_AVG_AMT_CREDIT=("AMT_CREDIT", "mean"),
+                PREV_REFUSED_COUNT=("NAME_CONTRACT_STATUS", lambda x: (x == "Refused").sum()),
+            )
+            .reset_index()
+        )
+        app = app.merge(prev_agg, on="SK_ID_CURR", how="left")
+        logger.info("Merged previous application aggregates.")
+
+    return app
+
+
+def load_test_table() -> pd.DataFrame:
+    """Load application_test.csv."""
+    path = os.path.join(DATA_DIR, "application_test.csv")
+    df = pd.read_csv(path)
+    logger.info(f"application_test shape: {df.shape}")
+    return df
