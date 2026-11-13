@@ -1,0 +1,39 @@
+"""
+Initialize SQLite database from application_train.csv.
+Run this once before using the Talk-to-Data feature.
+"""
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import numpy as np
+import pandas as pd
+from src.talk_to_data.query_runner import load_data_to_db
+from src.utils.config import DATA_DIR
+from src.utils.logger import get_logger
+
+logger = get_logger("init_db")
+
+
+def main():
+    path = os.path.join(DATA_DIR, "application_train.csv")
+    if not os.path.exists(path):
+        logger.error(f"Dataset not found at {path}. Download from Kaggle first.")
+        sys.exit(1)
+
+    logger.info("Loading CSV ...")
+    df = pd.read_csv(path)
+
+    # Derived features for SQL queries
+    df["AGE_YEARS"] = (-df["DAYS_BIRTH"] / 365).round(1)
+    df["DAYS_EMPLOYED"] = df["DAYS_EMPLOYED"].replace(365243, np.nan)
+    df["CREDIT_INCOME_RATIO"] = (df["AMT_CREDIT"] / (df["AMT_INCOME_TOTAL"] + 1)).round(4)
+    df["ANNUITY_INCOME_RATIO"] = (df["AMT_ANNUITY"] / (df["AMT_INCOME_TOTAL"] + 1)).round(4)
+
+    logger.info(f"Loaded {len(df)} rows. Writing to SQLite ...")
+    load_data_to_db(df, table_name="applications")
+    logger.info("Database initialised successfully.")
+
+
+if __name__ == "__main__":
+    main()
