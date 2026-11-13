@@ -1,1 +1,138 @@
+"""
+Exploratory Data Analysis — Home Credit Default Risk
+Run with: python notebooks/eda.py
+Or convert to notebook: jupytext --to notebook notebooks/eda.py
+"""
+# %% [markdown]
+# # Home Credit Default Risk — EDA
+# This notebook covers dataset summary, data quality, feature analysis and business insights.
+
+# %%
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings("ignore")
+
+sns.set_theme(style="darkgrid", palette="deep")
+plt.rcParams["figure.figsize"] = (12, 5)
+
+DATA_DIR = os.environ.get("DATA_DIR", "data")
+
+# %% [markdown]
+# ## 1. Load Data
+
+# %%
+df = pd.read_csv(os.path.join(DATA_DIR, "application_train.csv"))
+print(f"Shape: {df.shape}")
+df.head()
+
+# %% [markdown]
+# ## 2. Dataset Summary
+
+# %%
+print("=== Basic Info ===")
+print(f"Rows: {len(df):,} | Columns: {df.shape[1]}")
+print(f"\nTarget distribution:\n{df['TARGET'].value_counts()}")
+print(f"\nDefault Rate: {df['TARGET'].mean():.2%}")
+
+# %% [markdown]
+# ## 3. Missing Value Analysis
+
+# %%
+missing = df.isnull().mean().sort_values(ascending=False)
+high_missing = missing[missing > 0.3]
+print(f"Columns with >30% missing: {len(high_missing)}")
+high_missing.head(20)
+
+# %% [markdown]
+# ## 4. Feature Engineering
+
+# %%
+df["AGE_YEARS"] = -df["DAYS_BIRTH"] / 365
+df["DAYS_EMPLOYED"] = df["DAYS_EMPLOYED"].replace(365243, np.nan)
+df["CREDIT_INCOME_RATIO"] = df["AMT_CREDIT"] / (df["AMT_INCOME_TOTAL"] + 1)
+df["ANNUITY_INCOME_RATIO"] = df["AMT_ANNUITY"] / (df["AMT_INCOME_TOTAL"] + 1)
+
+# %% [markdown]
+# ## 5. Business Insights
+
+# %%
+# Insight 1: Default rate by gender
+gender_default = df.groupby("CODE_GENDER")["TARGET"].mean().rename("Default Rate")
+print("Default Rate by Gender:")
+print(gender_default.map(lambda x: f"{x:.2%}"))
+
+# %%
+# Insight 2: Default rate by education
+edu_default = df.groupby("NAME_EDUCATION_TYPE")["TARGET"].mean().sort_values(ascending=False)
+print("\nDefault Rate by Education:")
+print(edu_default.map(lambda x: f"{x:.2%}"))
+
+# %%
+# Insight 3: Age analysis
+print(f"\nMean age of defaulters: {df[df.TARGET==1]['AGE_YEARS'].mean():.1f} years")
+print(f"Mean age of non-defaulters: {df[df.TARGET==0]['AGE_YEARS'].mean():.1f} years")
+
+# %%
+# Insight 4: Credit-to-income ratio
+print(f"\nMedian CREDIT_INCOME_RATIO (defaulters): {df[df.TARGET==1]['CREDIT_INCOME_RATIO'].median():.2f}")
+print(f"Median CREDIT_INCOME_RATIO (non-defaulters): {df[df.TARGET==0]['CREDIT_INCOME_RATIO'].median():.2f}")
+
+# %%
+# Insight 5: Income type default rates
+inc_type = df.groupby("NAME_INCOME_TYPE")["TARGET"].agg(["mean", "count"])
+inc_type.columns = ["Default Rate", "Count"]
+inc_type["Default Rate"] = inc_type["Default Rate"].map(lambda x: f"{x:.2%}")
+print("\nDefault Rate by Income Type:")
+print(inc_type)
+
+# %% [markdown]
+# ## 6. Visualizations
+
+# %%
+fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+fig.suptitle("Home Credit EDA — Key Distributions", fontsize=16, fontweight="bold")
+
+# Age distribution
+axes[0, 0].hist(df[df.TARGET==0]["AGE_YEARS"], bins=40, alpha=0.6, label="No Default", color="#4472C4")
+axes[0, 0].hist(df[df.TARGET==1]["AGE_YEARS"], bins=40, alpha=0.6, label="Default", color="#ED7D31")
+axes[0, 0].set_title("Age Distribution by Default Status")
+axes[0, 0].legend()
+
+# Income distribution (log scale)
+axes[0, 1].hist(np.log1p(df[df.TARGET==0]["AMT_INCOME_TOTAL"]), bins=40, alpha=0.6, label="No Default", color="#4472C4")
+axes[0, 1].hist(np.log1p(df[df.TARGET==1]["AMT_INCOME_TOTAL"]), bins=40, alpha=0.6, label="Default", color="#ED7D31")
+axes[0, 1].set_title("Income Distribution (log scale)")
+axes[0, 1].legend()
+
+# Target distribution
+df["TARGET"].value_counts().plot(kind="bar", ax=axes[0, 2], color=["#4472C4", "#ED7D31"])
+axes[0, 2].set_title("Target Distribution (0=No Default, 1=Default)")
+axes[0, 2].set_xticklabels(["No Default", "Default"], rotation=0)
+
+# Credit-income ratio
+axes[1, 0].boxplot([
+    df[df.TARGET==0]["CREDIT_INCOME_RATIO"].dropna().clip(0, 15),
+    df[df.TARGET==1]["CREDIT_INCOME_RATIO"].dropna().clip(0, 15),
+], labels=["No Default", "Default"])
+axes[1, 0].set_title("Credit/Income Ratio by Default Status")
+
+# Default rate by gender
+gender_data = df.groupby("CODE_GENDER")["TARGET"].mean() * 100
+gender_data.plot(kind="bar", ax=axes[1, 1], color=["#4472C4", "#ED7D31", "#70AD47"])
+axes[1, 1].set_title("Default Rate by Gender (%)")
+axes[1, 1].set_xticklabels(gender_data.index, rotation=0)
+
+# Default rate by education
+edu_data = (df.groupby("NAME_EDUCATION_TYPE")["TARGET"].mean() * 100).sort_values()
+edu_data.plot(kind="barh", ax=axes[1, 2], color="#4472C4")
+axes[1, 2].set_title("Default Rate by Education (%)")
+
+plt.tight_layout()
+plt.savefig("notebooks/eda_charts.png", dpi=120, bbox_inches="tight")
+print("Saved: notebooks/eda_charts.png")
+plt.show()
 
