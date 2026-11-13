@@ -1,0 +1,48 @@
+"""
+NL → SQL agent using Anthropic Claude API.
+"""
+import os
+import anthropic
+from src.talk_to_data.prompt_templates import NL_TO_SQL_SYSTEM
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    return _client
+
+
+def nl_to_sql(question: str) -> str:
+    """Convert a natural-language question to a SQL query."""
+    client = _get_client()
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=512,
+        system=NL_TO_SQL_SYSTEM,
+        messages=[{"role": "user", "content": question}],
+    )
+    sql = response.content[0].text.strip()
+    logger.info(f"Generated SQL: {sql[:200]}")
+    return sql
+
+
+def summarise_results(question: str, sql: str, results_json: str) -> str:
+    """Ask Claude to produce a business-friendly summary of query results."""
+    from src.talk_to_data.prompt_templates import RESULT_SUMMARY_SYSTEM
+    client = _get_client()
+    user_msg = (
+        f"Question: {question}\n\nSQL query used:\n{sql}\n\nResults (JSON):\n{results_json}"
+    )
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=256,
+        system=RESULT_SUMMARY_SYSTEM,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return response.content[0].text.strip()
